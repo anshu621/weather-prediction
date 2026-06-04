@@ -115,7 +115,6 @@ def _get_season(month):
 
 
 if __name__ == "__main__":
-    # Ensure models exist
     if not os.path.exists("models/rainfall_model.pkl"):
         print("Models not found — training now...")
         os.makedirs("data/raw", exist_ok=True)
@@ -128,4 +127,4 @@ if __name__ == "__main__":
 
     print("\n🌦️  Weather Prediction Server starting...")
     print("📌  Open your browser at: http://localhost:5000\n")
-  app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
