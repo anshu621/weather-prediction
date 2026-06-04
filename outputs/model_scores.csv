@@ -1,0 +1,9 @@
+model,R2,RMSE,MAE,task
+Linear Regression,0.8301,15.2772,12.2386,Rainfall
+Ridge Regression,0.8298,15.2902,12.2526,Rainfall
+Random Forest,0.8016,16.5076,13.1466,Rainfall
+Gradient Boosting,0.812,16.0697,12.677,Rainfall
+Linear Regression,0.9482,2.0437,1.6468,Temperature
+Ridge Regression,0.9481,2.0456,1.648,Temperature
+Random Forest,0.9358,2.2742,1.7871,Temperature
+Gradient Boosting,0.9399,2.2012,1.7371,Temperature

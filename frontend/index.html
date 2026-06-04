@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>India Weather Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:        #0a0f1e;
+    --card:      #111827;
+    --card2:     #1a2236;
+    --border:    rgba(99,179,237,0.15);
+    --accent:    #63b3ed;
+    --gold:      #f6ad55;
+    --rain:      #76e4f7;
+    --hot:       #fc8181;
+    --cold:      #90cdf4;
+    --monsoon:   #68d391;
+    --text:      #e2e8f0;
+    --muted:     #718096;
+    --radius:    16px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content:'';
+    position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,179,237,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, rgba(246,173,85,0.05) 0%, transparent 60%);
+    pointer-events:none;
+  }
+
+  .container { max-width:1100px; margin:0 auto; padding:0 24px; position:relative; z-index:1; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 32px;
+    text-align: center;
+    animation: fadeDown 0.7s ease both;
+  }
+  header .eyebrow {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e2e8f0 0%, var(--accent) 50%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 1rem;
+    font-weight: 300;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    animation: fadeUp 0.7s 0.1s ease both;
+  }
+  .control-group { display:flex; flex-direction:column; gap:8px; flex:1; min-width:160px; }
+  .control-group label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  select, input[type="number"] {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+
+  .btn-predict {
+    background: linear-gradient(135deg, var(--accent), #4299e1);
+    color: #0a0f1e;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 32px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    white-space: nowrap;
+  }
+  .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,179,237,0.35); }
+  .btn-predict:active { transform: translateY(0); }
+  .btn-predict:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── LOADING ── */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 60px 0;
+    color: var(--muted);
+  }
+  .loading.show { display: block; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  /* ── RESULTS ── */
+  #results { display:none; animation: fadeUp 0.5s ease both; }
+  #results.show { display:block; }
+
+  /* ── SUMMARY CARDS ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .summary-card:hover { transform: translateY(-3px); border-color: rgba(99,179,237,0.35); }
+  .summary-card .icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .summary-card .val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .summary-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content:''; flex:1; height:1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* ── CHART ── */
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+  .chart-tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .tab {
+    padding: 7px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--accent); color: #0a0f1e; border-color: var(--accent); font-weight:500; }
+
+  .chart-area { position: relative; height: 220px; width: 100%; }
+  svg.chart { width:100%; height:100%; overflow:visible; }
+
+  /* ── MONTHLY TABLE ── */
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .month-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.2s, border-color 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .month-card:hover { transform: translateY(-3px); border-color: rgba(99,179,237,0.3); }
+  .month-card .month-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .season-badge {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .badge-Winter  { background: rgba(144,205,244,0.15); color: var(--cold); }
+  .badge-Summer  { background: rgba(252,129,129,0.15); color: var(--hot); }
+  .badge-Monsoon { background: rgba(104,211,145,0.15); color: var(--monsoon); }
+  .badge-Autumn  { background: rgba(246,173,85,0.15);  color: var(--gold); }
+
+  .month-stat { display:flex; justify-content:space-between; align-items:center; font-size:0.875rem; }
+  .month-stat .s-label { color: var(--muted); font-size:0.75rem; }
+  .month-stat .s-val { font-weight: 500; }
+  .temp-val { color: var(--hot); }
+  .rain-val { color: var(--rain); }
+
+  /* Rain bar */
+  .rain-bar-wrap { height:4px; background:rgba(118,228,247,0.1); border-radius:4px; overflow:hidden; }
+  .rain-bar { height:100%; background: linear-gradient(90deg, var(--rain), var(--accent)); border-radius:4px; transition: width 0.8s ease; }
+
+  /* Compare section */
+  .compare-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 48px;
+  }
+  .compare-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-station { width: 100px; font-weight:500; font-size:0.9rem; }
+  .compare-bar-wrap { flex:1; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden; }
+  .compare-bar { height:100%; border-radius:4px; transition: width 1s ease; }
+  .compare-val { width: 80px; text-align:right; font-size:0.9rem; font-weight:500; }
+
+  /* error */
+  .error-box {
+    background: rgba(252,129,129,0.1);
+    border: 1px solid rgba(252,129,129,0.3);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: var(--hot);
+    display: none;
+    margin-bottom: 24px;
+  }
+  .error-box.show { display:block; }
+
+  /* Animations */
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px);  } to { opacity:1; transform:translateY(0); } }
+  @keyframes spin     { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="eyebrow">IMD Data · Machine Learning</div>
+    <h1>India Weather Predictor</h1>
+    <p>Rainfall & Temperature forecasts powered by scikit-learn</p>
+  </header>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-group">
+      <label>Station</label>
+      <select id="stationSelect">
+        <option value="INDORE">Indore</option>
+        <option value="BHOPAL">Bhopal</option>
+        <option value="GWALIOR" selected>Gwalior</option>
+        <option value="JABALPUR">Jabalpur</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Year</label>
+      <input type="number" id="yearInput" value="2025" min="2020" max="2035"/>
+    </div>
+    <button class="btn-predict" id="predictBtn" onclick="fetchPrediction()">
+      Predict Weather
+    </button>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Running prediction model...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <div class="section-title">📊 Summary</div>
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <!-- Chart -->
+    <div class="chart-wrap">
+      <div class="chart-tabs">
+        <button class="tab active" onclick="switchTab('temp', this)">🌡️ Temperature</button>
+        <button class="tab" onclick="switchTab('rain', this)">🌧️ Rainfall</button>
+      </div>
+      <div class="chart-area">
+        <svg class="chart" id="chartSvg" viewBox="0 0 900 200" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+
+    <!-- Monthly cards -->
+    <div class="section-title">📅 Monthly Breakdown</div>
+    <div class="month-grid" id="monthGrid"></div>
+
+    <!-- Compare -->
+    <div class="section-title">🏙️ Compare All Stations</div>
+    <div class="compare-section">
+      <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--muted);">
+          Comparing for
+          <select id="compareMonth" style="width:auto;padding:6px 10px;font-size:0.85rem;" onchange="fetchCompare()">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5">May</option><option value="6">June</option>
+            <option value="7" selected>July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+          <span id="compareYearLabel"></span>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <span style="font-size:0.8rem;color:var(--hot);">● Temperature</span>
+          <span style="font-size:0.8rem;color:var(--rain);">● Rainfall</span>
+        </div>
+      </div>
+      <div id="compareGrid"></div>
+    </div>
+
+  </div><!-- /results -->
+</div>
+
+<script>
+const API = "http://localhost:5000/api";
+let currentData = null;
+let activeTab = "temp";
+
+async function fetchPrediction() {
+  const station = document.getElementById("stationSelect").value;
+  const year    = document.getElementById("yearInput").value;
+  const btn     = document.getElementById("predictBtn");
+
+  showError("");
+  btn.disabled = true;
+  document.getElementById("loading").classList.add("show");
+  document.getElementById("results").classList.remove("show");
+
+  try {
+    const res  = await fetch(`${API}/predict?station=${station}&year=${year}`);
+    const data = await res.json();
+
+    if (data.error) { showError(data.error); return; }
+
+    currentData = data;
+    renderResults(data);
+    document.getElementById("compareYearLabel").textContent = year;
+    fetchCompare();
+    document.getElementById("results").classList.add("show");
+
+  } catch(e) {
+    showError("Cannot connect to backend. Make sure you ran: py -3.11 app.py");
+  } finally {
+    document.getElementById("loading").classList.remove("show");
+    btn.disabled = false;
+  }
+}
+
+function renderResults(data) {
+  renderSummary(data.summary, data.station, data.year);
+  renderChart(data.monthly, activeTab);
+  renderMonthCards(data.monthly);
+}
+
+function renderSummary(s, station, year) {
+  document.getElementById("summaryGrid").innerHTML = `
+    <div class="summary-card"><div class="icon">📍</div><div class="val">${station}</div><div class="lbl">Station</div></div>
+    <div class="summary-card"><div class="icon">🔥</div><div class="val">${s.max_temp}°C</div><div class="lbl">Peak Temp · ${s.hottest_month}</div></div>
+    <div class="summary-card"><div class="icon">❄️</div><div class="val">${s.min_temp}°C</div><div class="lbl">Min Temp · ${s.coldest_month}</div></div>
+    <div class="summary-card"><div class="icon">🌧️</div><div class="val">${s.total_rainfall}</div><div class="lbl">Total Rainfall mm</div></div>
+    <div class="summary-card"><div class="icon">⛈️</div><div class="val">${s.peak_rain_month}</div><div class="lbl">Peak Rain Month</div></div>
+    <div class="summary-card"><div class="icon">📅</div><div class="val">${year}</div><div class="lbl">Forecast Year</div></div>
+  `;
+}
+
+function renderChart(monthly, type) {
+  const svg    = document.getElementById("chartSvg");
+  const vals   = monthly.map(m => type === "temp" ? m.temperature : m.rainfall_mm);
+  const labels = monthly.map(m => m.month);
+  const color  = type === "temp" ? "#fc8181" : "#76e4f7";
+  const maxV   = Math.max(...vals);
+  const minV   = Math.min(...vals);
+  const range  = maxV - minV || 1;
+  const W = 900, H = 200, pad = 40;
+  const stepX = (W - pad*2) / 11;
+
+  const points = vals.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = H - pad - ((v - minV) / range) * (H - pad*2);
+    return [x, y];
+  });
+
+  const pathD = points.map((p, i) => `${i===0?'M':'L'}${p[0]},${p[1]}`).join(' ');
+  const areaD = pathD + ` L${points[11][0]},${H-pad} L${points[0][0]},${H-pad} Z`;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaD}" fill="url(#grad)"/>
+    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points.map((p,i) => `
+      <circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${color}" opacity="0.9"/>
+      <text x="${p[0]}" y="${H-8}" text-anchor="middle" fill="#718096" font-size="11" font-family="DM Sans">${labels[i]}</text>
+      <text x="${p[0]}" y="${p[1]-10}" text-anchor="middle" fill="${color}" font-size="10" font-family="DM Sans" font-weight="500">${vals[i]}${type==='temp'?'°':''}</text>
+    `).join('')}
+  `;
+}
+
+function switchTab(type, el) {
+  activeTab = type;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  if (currentData) renderChart(currentData.monthly, type);
+}
+
+function renderMonthCards(monthly) {
+  const maxRain = Math.max(...monthly.map(m => m.rainfall_mm));
+  document.getElementById("monthGrid").innerHTML = monthly.map((m, i) => `
+    <div class="month-card" style="animation-delay:${i*0.04}s">
+      <div class="month-name">
+        ${m.month}
+        <span class="season-badge badge-${m.season}">${m.season}</span>
+      </div>
+      <div class="month-stat">
+        <span class="s-label">Temperature</span>
+        <span class="s-val temp-val">${m.temperature}°C</span>
+      </div>
+      <div class="month-stat">
+        <span class="s-label">Rainfall</span>
+        <span class="s-val rain-val">${m.rainfall_mm} mm</span>
+      </div>
+      <div class="rain-bar-wrap">
+        <div class="rain-bar" style="width:${(m.rainfall_mm/maxRain*100).toFixed(1)}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function fetchCompare() {
+  const month = document.getElementById("compareMonth").value;
+  const year  = document.getElementById("yearInput").value || 2025;
+  document.getElementById("compareYearLabel").textContent = year;
+
+  try {
+    const res  = await fetch(`${API}/compare?month=${month}&year=${year}`);
+    const data = await res.json();
+    if (data.error) return;
+
+    const maxTemp = Math.max(...data.data.map(d => d.temperature));
+    const maxRain = Math.max(...data.data.map(d => d.rainfall_mm));
+
+    document.getElementById("compareGrid").innerHTML = data.data.map(d => `
+      <div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px;letter-spacing:1px;">${d.station}</div>
+        <div class="compare-row">
+          <div class="compare-station" style="color:var(--hot);font-size:0.85rem;">🌡️ Temp</div>
+          <div class="compare-bar-wrap">
+            <div class="compare-bar" style="width:${(d.temperature/maxTemp*100).toFixed(1)}%;background:linear-gradient(90deg,#fc8181,#f6ad55)"></div>
+          </div>
+          <div class="compare-val" style="color:var(--hot)">${d.temperature}°C</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-station" style="color:var(--rain);font-size:0.85rem;">🌧️ Rain</div>
+          <div class="compare-bar-wrap">
+            <div class="compare-bar" style="width:${(d.rainfall_mm/maxRain*100).toFixed(1)}%;background:linear-gradient(90deg,#76e4f7,#63b3ed)"></div>
+          </div>
+          <div class="compare-val" style="color:var(--rain)">${d.rainfall_mm} mm</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { /* backend not ready yet */ }
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorBox");
+  el.textContent = msg;
+  el.classList.toggle("show", !!msg);
+}
+
+// Auto-load on page open
+window.onload = () => fetchPrediction();
+</script>
+</body>
+</html>
